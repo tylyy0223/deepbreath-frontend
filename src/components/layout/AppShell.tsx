@@ -3,7 +3,6 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { MobileNav } from './MobileNav';
 import { UpdateBanner } from './UpdateBanner';
-import { MoodQuickEntry } from './MoodQuickEntry';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -48,9 +47,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* 壳 APP 新版本提示（浏览器不渲染） */}
       <UpdateBanner />
-
-      {/* 情绪快速入口 */}
-      <MoodQuickEntry />
     </div>
   );
 }
