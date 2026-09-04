@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DeepBreath</string>
+    <string name="title_activity_main">DeepBreath</string>
+    <string name="package_name">cn.luoyuyu.deepbreath</string>
+    <string name="custom_url_scheme">cn.luoyuyu.deepbreath</string>
+</resources>

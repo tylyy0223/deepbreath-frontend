@@ -1,0 +1,77 @@
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
+import { RequireAuth } from '../components/auth/RequireAuth';
+import { RequireAdmin } from '../components/auth/RequireAdmin';
+import { Spinner } from '../components/ui/Spinner';
+
+// P2-#16: React.lazy 按路由拆分。页面是命名导出，用 wrapper 转 default
+function lazyNamed<T extends Record<string, React.ComponentType<unknown>>>(
+  imp: () => Promise<T>,
+  name: keyof T,
+) {
+  return lazy(async () => {
+    const mod = await imp();
+    return { default: mod[name] };
+  });
+}
+
+const Lazy = (imp: () => Promise<Record<string, React.ComponentType<unknown>>>, name: string) => {
+  const Comp = lazyNamed(imp, name);
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Spinner /></div>}>
+      <Comp />
+    </Suspense>
+  );
+};
+
+// 登录/注册：首屏大概率命中，eager 加载
+import { LoginPage } from '../pages/LoginPage';
+import { RegisterPage } from '../pages/RegisterPage';
+// 聊天：核心体验，eager 加载
+import { ChatPage } from '../pages/ChatPage';
+// 封面介绍页（登录前展示）
+import { IntroPage } from '../pages/IntroPage';
+// 404
+import { NotFoundPage } from '../pages/NotFoundPage';
+
+// 首页入口：总是展示封面介绍页（未登录点「开始使用」→ 登录；已登录点「进入」→ 聊天）
+function HomeGate() {
+  const isInitializing = useAuthStore((s) => s.isInitializing);
+  if (isInitializing) return null; // 等待 init 完成
+  return <IntroPage />;
+}
+
+export const router = createBrowserRouter([
+  {
+    path: '/app',
+    children: [
+      { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
+      { path: 'chat/:mode', element: <RequireAuth><ChatPage /></RequireAuth> },
+      { path: 'chat', element: <Navigate to="/app/chat/science" replace /> },
+
+      // Lazy-loaded pages
+      { path: 'breath', element: <RequireAuth>{Lazy(() => import('../pages/BreathPage'), 'BreathPage')}</RequireAuth> },
+      { path: 'breath/:id', element: <RequireAuth>{Lazy(() => import('../pages/BreathSessionPage'), 'BreathSessionPage')}</RequireAuth> },
+      { path: 'checkin', element: <RequireAuth>{Lazy(() => import('../pages/CheckInPage'), 'CheckInPage')}</RequireAuth> },
+      { path: 'diary', element: <RequireAuth>{Lazy(() => import('../pages/DiaryPage'), 'DiaryPage')}</RequireAuth> },
+      { path: 'diary/new', element: <RequireAuth>{Lazy(() => import('../pages/DiaryCreatePage'), 'DiaryCreatePage')}</RequireAuth> },
+      { path: 'diary/:id/edit', element: <RequireAuth>{Lazy(() => import('../pages/DiaryEditPage'), 'DiaryEditPage')}</RequireAuth> },
+      { path: 'diary/:id', element: <RequireAuth>{Lazy(() => import('../pages/DiaryDetailPage'), 'DiaryDetailPage')}</RequireAuth> },
+      { path: 'articles', element: <RequireAuth>{Lazy(() => import('../pages/ArticlesPage'), 'ArticlesPage')}</RequireAuth> },
+      { path: 'community', element: <RequireAuth>{Lazy(() => import('../pages/CommunityPage'), 'CommunityPage')}</RequireAuth> },
+      { path: 'community/:id', element: <RequireAuth>{Lazy(() => import('../pages/CommunityPostPage'), 'CommunityPostPage')}</RequireAuth> },
+      { path: 'sessions', element: <RequireAuth>{Lazy(() => import('../pages/SessionsPage'), 'SessionsPage')}</RequireAuth> },
+      { path: 'settings', element: <RequireAuth>{Lazy(() => import('../pages/SettingsPage'), 'SettingsPage')}</RequireAuth> },
+      { path: 'credits', element: <RequireAuth>{Lazy(() => import('../pages/CreditsPage'), 'CreditsPage')}</RequireAuth> },
+      { path: 'scales', element: <RequireAuth>{Lazy(() => import('../pages/ScalesPage'), 'ScalesPage')}</RequireAuth> },
+      { path: 'scales/:id', element: <RequireAuth>{Lazy(() => import('../pages/ScaleTestPage'), 'ScaleTestPage')}</RequireAuth> },
+      { path: 'references', element: <RequireAuth>{Lazy(() => import('../pages/ReferencesPage'), 'ReferencesPage')}</RequireAuth> },
+      { path: 'report', element: <RequireAuth>{Lazy(() => import('../pages/WeeklyReportPage'), 'WeeklyReportPage')}</RequireAuth> },
+      { path: 'admin', element: <RequireAdmin>{Lazy(() => import('../pages/AdminPage'), 'AdminPage')}</RequireAdmin> },
+      { index: true, element: <HomeGate /> },
+    ],
+  },
+  { path: '*', element: <NotFoundPage /> },
+]);
