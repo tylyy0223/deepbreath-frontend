@@ -7,6 +7,7 @@ export const ENDPOINTS = {
   AUTH_ME: '/auth/me',
   AUTH_PROFILE: '/auth/profile',
   AUTH_PASSWORD: '/auth/password',
+  AUTH_PASSWORD_RESET: '/auth/password/reset',
   AUTH_SMS_SEND: '/auth/sms/send',
   AUTH_BIND_PHONE: '/auth/bind-phone',
   AUTH_LOGOUT: '/auth/logout',

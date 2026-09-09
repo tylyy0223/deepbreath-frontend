@@ -8,11 +8,11 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  email: string;
+  email?: string;
   password: string;
   nickname?: string;
-  phone?: string;
-  sms_code?: string;
+  phone: string;
+  sms_code: string;
 }
 
 export interface RefreshRequest {
