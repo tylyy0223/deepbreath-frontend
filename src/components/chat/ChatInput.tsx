@@ -12,19 +12,32 @@ interface ChatInputProps {
   mode?: string;
 }
 
+// 修复: 输入历史从 localStorage 改 sessionStorage (关闭浏览器即清)
+// 原因: 用户发送的可能是心理问题/个人敏感信息, 不应长期驻留磁盘
 const MAX_HISTORY = 5;
-const STORAGE_KEY = 'deepbreath_input_history';
+const STORAGE_KEY = 'deepbreath_input_history';  // 实际写到 sessionStorage
 
 function loadHistory(): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch { return []; }
 }
 
 function saveHistory(history: string[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  } catch { /* quota */ }
 }
+
+// 一次性迁移: 旧 localStorage 数据搬过来 + 清掉
+try {
+  const legacy = localStorage.getItem(STORAGE_KEY);
+  if (legacy && !sessionStorage.getItem(STORAGE_KEY)) {
+    sessionStorage.setItem(STORAGE_KEY, legacy);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+} catch { /* ignore */ }
 
 export function ChatInput({ onSend, onCancel, isStreaming, disabled, mode }: ChatInputProps) {
   const draft = useChatStore((s) => s.drafts[mode || 'science'] || '');

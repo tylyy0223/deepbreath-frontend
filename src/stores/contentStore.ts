@@ -14,10 +14,13 @@ interface Article {
   title: string;
   slug: string;
   excerpt?: string;
+  // 后端字段, 保留兼容 (mapArticle 用 excerpt ?? summary 取值)
+  summary?: string;
   content?: string;
   category?: string;
   cover_url?: string;
   created_at?: string;
+  published_at?: string;
 }
 
 export interface Recommendations {
@@ -26,12 +29,15 @@ export interface Recommendations {
   articles: Article[];
 }
 
-// Backend returns {summary, published_at}; map to frontend shape
+// Backend 返回字段 {summary, published_at}, 前端用 {excerpt, created_at}, map 兼容
 function mapArticle(a: Record<string, unknown>): Article {
+  // Article 加了 summary / published_at 字段兼容后端, 但 Record<string, unknown>
+  // 仍需要通过 unknown 中转 (TS 要求 explicit double cast 因为 title 是 required)
+  const article = a as unknown as Article;
   return {
-    ...(a as unknown as Article),
-    excerpt: (a.excerpt || a.summary) as string | undefined,
-    created_at: (a.created_at || a.published_at) as string | undefined,
+    ...article,
+    excerpt: article.excerpt ?? article.summary,
+    created_at: article.created_at ?? article.published_at,
   };
 }
 
