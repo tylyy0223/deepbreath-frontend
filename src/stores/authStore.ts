@@ -44,8 +44,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   loginByPhone: async (phone: string, password: string) => {
     const body: LoginRequest = { phone, password };
     const res = await api.post(ENDPOINTS.AUTH_LOGIN, body);
-    const { access_token, refresh_token, user } = res.data;
-    get().setTokens(access_token, refresh_token, user);
+    const { access_token, user } = res.data;
+    get().setTokens(access_token, user);
   },
 
   loginBySms: async (phone: string, smsCode: string) => {
