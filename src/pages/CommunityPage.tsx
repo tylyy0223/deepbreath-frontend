@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../lib/safeUrl';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -190,7 +191,7 @@ export function CommunityPage() {
             <div className="flex flex-wrap gap-2 mt-2">
               {newImages.map((url, i) => (
                 <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img src={isSafeImageUrl(url) ? url : ""} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setNewImages(newImages.filter((_, j) => j !== i))}
@@ -264,7 +265,7 @@ export function CommunityPage() {
                   {post.images.slice(0, 3).map((url, i) => (
                     <img
                       key={i}
-                      src={url}
+                      src={isSafeImageUrl(url) ? url : ""}
                       alt=""
                       className="w-16 h-16 rounded-lg object-cover"
                       onClick={(e) => { e.stopPropagation(); window.open(url, '_blank'); }}
@@ -320,7 +321,7 @@ export function CommunityPage() {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {replyImages.map((url, i) => (
                         <div key={i} className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <img src={isSafeImageUrl(url) ? url : ""} alt="" className="w-full h-full object-cover" />
                           <button
                             type="button"
                             onClick={() => setReplyImages(replyImages.filter((_, j) => j !== i))}

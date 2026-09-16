@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../../lib/safeUrl';
 import type { MoodEntry } from '../../types/diary';
 import { MOOD_EMOJIS } from '../../config/constants';
 import { useNavigate } from 'react-router-dom';
@@ -52,7 +53,7 @@ export function MoodTimeline({ entries }: { entries: MoodEntry[] }) {
                   {entry.images.slice(0, 3).map((url, i) => (
                     <img
                       key={i}
-                      src={url}
+                      src={isSafeImageUrl(url) ? url : ""}
                       alt=""
                       className="w-10 h-10 rounded-lg object-cover"
                     />

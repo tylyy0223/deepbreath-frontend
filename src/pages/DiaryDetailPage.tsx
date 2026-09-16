@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../lib/safeUrl';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDiaryStore } from '../stores/diaryStore';
@@ -145,7 +146,7 @@ export function DiaryDetailPage() {
             {currentEntry.images.map((url, i) => (
               <img
                 key={i}
-                src={url}
+                src={isSafeImageUrl(url) ? url : ""}
                 alt=""
                 className="max-w-[240px] max-h-[240px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => window.open(url, '_blank')}

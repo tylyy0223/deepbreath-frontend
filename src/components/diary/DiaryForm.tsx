@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../../lib/safeUrl';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -223,7 +224,7 @@ export function DiaryForm({ entryId, initialData }: DiaryFormProps) {
           <div className="flex flex-wrap gap-2 mt-3">
             {images.map((url, i) => (
               <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={isSafeImageUrl(url) ? url : ""} alt="" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}

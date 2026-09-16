@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../../lib/safeUrl';
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -106,7 +107,7 @@ export function MessageBubble({ message, hasAudio = false }: { message: ChatMess
                   {message.images.map((url, i) => (
                     <img
                       key={i}
-                      src={url}
+                      src={isSafeImageUrl(url) ? url : ""}
                       alt=""
                       className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => window.open(url, '_blank')}

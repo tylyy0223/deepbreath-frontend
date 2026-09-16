@@ -1,3 +1,4 @@
+import { isSafeImageUrl } from '../../lib/safeUrl';
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { Button } from '../ui/Button';
 import { useChatStore } from '../../stores/chatStore';
@@ -303,7 +304,7 @@ export function ChatInput({ onSend, onCancel, isStreaming, disabled, mode }: Cha
           <div className="flex flex-wrap gap-2 mb-2">
             {images.map((url, i) => (
               <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={isSafeImageUrl(url) ? url : ""} alt="" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
