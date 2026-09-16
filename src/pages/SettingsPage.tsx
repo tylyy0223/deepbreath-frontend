@@ -70,7 +70,7 @@ export function SettingsPage() {
           birth_year: birthYear ? Number(birthYear) : null,
           province: province.trim(),
         };
-        setTokens(useAuthStore.getState().accessToken!, useAuthStore.getState().refreshToken!, updated);
+        setTokens(useAuthStore.getState().accessToken!, updated);
       }
       addToast('保存成功', 'success');
     } catch {

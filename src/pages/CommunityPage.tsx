@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { useCommunityStore } from '../stores/communityStore';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -256,7 +257,7 @@ export function CommunityPage() {
             >
               {post.title && <h3 className="font-medium text-gray-800 dark:text-zinc-200 text-sm mb-1">{post.title}</h3>}
               <div className="text-sm text-gray-700 dark:text-zinc-300 prose prose-sm max-w-none dark:prose-invert line-clamp-4">
-  <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{post.content}</ReactMarkdown>
 </div>
               {post.images && post.images.length > 0 && (
                 <div className="flex gap-2 mt-2">

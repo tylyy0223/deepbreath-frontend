@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { useChatStore } from '../stores/chatStore';
 import { Card } from '../components/ui/Card';
 import { checkAudioKeys, checkBoundRefs, playTts, stopTts } from '../lib/ttsAudio';
@@ -123,7 +124,7 @@ export function SessionsPage() {
                   </div>
                 ) : (
                   <div key={msg.id} className="prose prose-sm prose-gray max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{msg.content}</ReactMarkdown>
                     {audioIds.has(String(msg.id)) && (
                       <button
                         onClick={() => handlePlay(String(msg.id), msg.content)}

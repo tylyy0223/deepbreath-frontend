@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { useContentStore } from '../stores/contentStore';
 import { useCommunityStore } from '../stores/communityStore';
 import { Card } from '../components/ui/Card';
@@ -216,7 +217,7 @@ export function ArticlesPage() {
             )}
           </div>
           <div className="mt-4 prose prose-sm prose-gray max-w-none dark:prose-invert">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
               {selected.content || selected.excerpt || '暂无内容'}
             </ReactMarkdown>
           </div>

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import type { ChatMessage } from '../../types/chat';
 import { useChatStore } from '../../stores/chatStore';
 import { useCreditsStore } from '../../stores/creditsStore';
@@ -116,7 +117,7 @@ export function MessageBubble({ message, hasAudio = false }: { message: ChatMess
               <span className="whitespace-pre-wrap">{message.content}</span>
             </>
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
               {message.content}
             </ReactMarkdown>
           )}

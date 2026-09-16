@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { useCommunityStore } from '../stores/communityStore';
 import type { CommunityPost, CommunityReply } from '../types/community';
 import { Card } from '../components/ui/Card';
@@ -228,7 +229,7 @@ export function CommunityPostPage() {
 
             {/* Content */}
             <div className="text-sm text-gray-700 dark:text-zinc-300 prose prose-sm max-w-none dark:prose-invert">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{post.content}</ReactMarkdown>
             </div>
 
             {/* Post images */}
@@ -349,7 +350,7 @@ export function CommunityPostPage() {
                 ) : (
                   <>
                     <div className="text-sm text-gray-700 dark:text-zinc-300 prose prose-sm max-w-none dark:prose-invert">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reply.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{reply.content}</ReactMarkdown>
                     </div>
                     {reply.images && reply.images.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
