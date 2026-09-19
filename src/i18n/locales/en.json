@@ -25,7 +25,7 @@
     "assessment": "Assessment",
     "reading": "Reading",
     "clear": "Clear",
-    "cost": "This round: {cost} Credit(s) ({mode})",
+    "cost": "This round: {{cost}} Credit(s) ({{mode}})",
     "related": "📚 Related:",
     "input_placeholder": "Type your message…",
     "send": "Send",

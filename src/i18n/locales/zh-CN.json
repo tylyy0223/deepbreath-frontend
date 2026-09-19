@@ -26,7 +26,7 @@
     "assessment": "心理评估",
     "reading": "阅读模式",
     "clear": "清空",
-    "cost": "本轮消耗 {cost} Credit（{mode}）",
+    "cost": "本轮消耗 {{cost}} Credit（{{mode}}）",
     "related": "📚 相关内容：",
     "input_placeholder": "输入你的想法…",
     "send": "发送",
