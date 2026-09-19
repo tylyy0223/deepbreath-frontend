@@ -123,6 +123,13 @@ const handleSend = async (content: string, images?: string[]) => {
         })}
       </div>
 
+      {/* 心理评估模式：常驻免责提示（完整声明见欢迎卡） */}
+      {mode === 'assessment' && (
+        <div className="px-4 py-1.5 text-[10px] leading-relaxed text-center text-amber-700/80 bg-amber-50/60 border-b border-amber-100/80 dark:text-amber-400/70 dark:bg-amber-500/5 dark:border-amber-500/10">
+          本评估仅为心理健康筛查参考，不构成医学诊断，不能替代精神科专业诊疗；请理性看待结果。
+        </div>
+      )}
+
       <MessageList
         messages={messages}
         isStreaming={isStreaming}

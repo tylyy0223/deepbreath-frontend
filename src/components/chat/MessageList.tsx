@@ -11,7 +11,7 @@ interface MessageListProps {
   mode: string;
 }
 
-const WELCOME: Record<string, { title: string; desc: string; tips?: string[] }> = {
+const WELCOME: Record<string, { title: string; desc: string; tips?: string[]; disclaimer?: string }> = {
   science: {
     title: '心理科普助手',
     desc: '用科学心理学知识解答你的疑问',
@@ -26,6 +26,8 @@ const WELCOME: Record<string, { title: string; desc: string; tips?: string[] }> 
     title: '心理评估助手',
     desc: '通过系统性的提问，帮你梳理和了解自己的心理状态',
     tips: ['想了解自己的情绪状态', '探索我的人格特质', '分析我的行为模式'],
+    disclaimer:
+      '重要免责声明：本心理评估结果仅为心理健康筛查参考，不构成精神疾病医学诊断，不能替代精神科专业诊疗。评估结果受作答真实性、当下情绪等因素影响，存在合理偏差。任何人依据本结果作出的个人决策、行为均自行承担全部责任；评估方已尽风险告知义务，对极端心理危机事件不承担连带法律责任。',
   },
   reading: {
     title: '读书助手',
@@ -61,6 +63,13 @@ export function MessageList({ messages, isStreaming, streamBuffer, mode }: Messa
               {w.tips.map((tip, i) => (
                 <p key={i} className="text-xs text-gray-400 dark:text-zinc-500">「{tip}」</p>
               ))}
+            </div>
+          )}
+          {w.disclaimer && (
+            <div className="mt-6 text-left rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2.5 dark:border-amber-500/20 dark:bg-amber-500/5">
+              <p className="text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/80">
+                {w.disclaimer}
+              </p>
             </div>
           )}
         </div>
