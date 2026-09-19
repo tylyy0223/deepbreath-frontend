@@ -34,10 +34,11 @@ if [ -n "$FREE_GB" ] && [ "$FREE_GB" -lt 5 ]; then
 fi
 
 SRC_DIR="/root/deepbreath-frontend"        # 源码
-APP_DIR="/var/www/deepbreath/app"          # dev (58.89) 部署落地点（dist 写到这）
-# nginx alias 实际是 /var/www/deepbreath/assets/（不带 /app/），
-# prod 同步阶段会从 APP_DIR 复制到 nginx alias 期望的位置。
-BACKUP_ROOT="/var/www/deepbreath"          # dev 备份根目录
+# nginx alias 期望的位置（dev + prod 都一样）：
+#   location ^~ /app/assets/    { alias /var/www/deepbreath/assets/; }
+#   location = /app/index.html  { alias /var/www/deepbreath/index.html; }
+# 部署直接写到这里，不再用 APP_DIR 中转（避免路径错位）
+BACKUP_ROOT="/var/www/deepbreath"          # 备份根目录
 REMOTE_62="root@47.103.62.70"              # prod 同步目标
 SSH_KEY="/root/.ssh/id_ed25519"
 PROD_HEALTH_URL="https://luoyuyu.cn/api/v1/health"
@@ -135,17 +136,27 @@ log "✓ 构建完成: $BUILT_HASH"
 # 默认行为：build 完不部署（除非显式 --to-dev 或 --to-prod）
 if [ "$DO_DEPLOY_DEV" = "0" ] && [ "$DO_DEPLOY_PROD" = "0" ]; then
   log "未指定 --to-dev/--to-prod，仅 build，不部署任何机器"
-  log "产物在 dist/，可用: cp -r dist/* $APP_DIR/ （手动部署 dev）"
+  log "产物在 dist/，可用手动部署："
+  log "  dev:  cp -r dist/assets/* /var/www/deepbreath/assets/ && cp dist/index.html /var/www/deepbreath/index.html"
   exit 0
 fi
 
 # ---------- 3) 部署 dev (58.89) ----------
+# 直接 cp 到 nginx alias 路径 /var/www/deepbreath/{assets,index.html}
 if [ "$DO_DEPLOY_DEV" = "1" ]; then
+  DEV_BACKUP="$BACKUP_ROOT/deploy.bak.$TS"
   log "备份 dev 线上产物 → $DEV_BACKUP ..."
-  cp -a "$APP_DIR" "$DEV_BACKUP"
-  log "同步产物到 dev $APP_DIR ..."
-  rm -rf "$APP_DIR"/assets/*
-  cp -r dist/* "$APP_DIR/"
+  mkdir -p "$DEV_BACKUP"
+  if [ -d /var/www/deepbreath/assets ]; then
+    cp -a /var/www/deepbreath/assets "$DEV_BACKUP/assets"
+  fi
+  if [ -f /var/www/deepbreath/index.html ]; then
+    cp -a /var/www/deepbreath/index.html "$DEV_BACKUP/index.html"
+  fi
+  log "同步产物到 dev /var/www/deepbreath ..."
+  rm -rf /var/www/deepbreath/assets/*
+  cp -r dist/assets/* /var/www/deepbreath/assets/
+  cp dist/index.html /var/www/deepbreath/index.html
   log "✓ dev 部署完成（备份 $DEV_BACKUP）"
 fi
 
@@ -177,10 +188,10 @@ if [ "$DO_DEPLOY_PROD" = "1" ]; then
     "rm -rf /tmp/deepbreath-sync && mkdir -p /tmp/deepbreath-sync/assets" \
     || { err "Prod 中间目录准备失败"; exit 1; }
   rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
-    "$APP_DIR/assets/" "$REMOTE_62:/tmp/deepbreath-sync/assets/" 2>&1 | tail -n 2 \
+    "dist/assets/" "$REMOTE_62:/tmp/deepbreath-sync/assets/" 2>&1 | tail -n 2 \
     || { err "Prod assets rsync 失败"; exit 1; }
   rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
-    "$APP_DIR/index.html" "$REMOTE_62:/tmp/deepbreath-sync/index.html" 2>&1 | tail -n 2 \
+    "dist/index.html" "$REMOTE_62:/tmp/deepbreath-sync/index.html" 2>&1 | tail -n 2 \
     || { err "Prod index.html rsync 失败"; exit 1; }
   # 在 prod 远端原子替换：备份老内容 → 清空 nginx alias 路径 → mv 新内容
   ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" bash << 'PROD_DEPLOY_EOF'
