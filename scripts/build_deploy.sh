@@ -175,11 +175,9 @@ if [ "$DO_DEPLOY_PROD" = "1" ]; then
   fi
   log "✓ Prod 当前健康"
 
-  # 4.2 备份 prod
-  log "备份 prod 线上产物 → $PROD_BACKUP_REMOTE ..."
-  ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" \
-    "cp -a /var/www/deepbreath/app $PROD_BACKUP_REMOTE" \
-    || { err "Prod 备份失败，中止部署"; exit 1; }
+  # 4.2 备份 prod（实际在 4.3 的 ssh heredoc 里 mv 前自动备份）
+  PROD_DEPLOY_BACKUP="/var/www/deepbreath/deploy.bak.$TS"
+  log "Prod 备份将保存到 → $PROD_DEPLOY_BACKUP"
 
   # 4.3 同步 dist 到 prod（nginx alias 期望的位置是 /var/www/deepbreath/，不带 /app/）
   # 使用中间目录 + 原子 mv 模式：避免 rsync --delete 直接覆盖 nginx alias 路径
@@ -220,7 +218,7 @@ PROD_DEPLOY_EOF
   check_status "$PROD_INDEX_URL" "200" "prod post-check index" || POST_OK=0
 
   if [ "$POST_OK" = "1" ]; then
-    log "✓ Prod 部署成功 + 健康检查通过（备份 $PROD_BACKUP_REMOTE）"
+    log "✓ Prod 部署成功 + 健康检查通过（备份 $PROD_DEPLOY_BACKUP）"
   else
     err "Prod 部署后健康检查失败，自动回滚！"
     ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" \
