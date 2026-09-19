@@ -18,7 +18,7 @@
 #   - 部署前 pre-check（确认当前 prod 健康）
 #   - 部署后 post-check（确认新版本健康）
 #   - post-check 失败自动 rsync 回 prod 备份
-#   - 所有备份保留在 /var/www/deepbreath/app.bak.<ts>（dev + prod 各一份）
+#   - 所有备份保留在 /var/www/deepbreath/deploy.bak.<ts>（dev + prod 各一份）
 #
 # 健康检查端点：
 #   - GET https://luoyuyu.cn/api/v1/health  （需返回 "db":"connected","redis":"connected"）
@@ -34,10 +34,11 @@ if [ -n "$FREE_GB" ] && [ "$FREE_GB" -lt 5 ]; then
 fi
 
 SRC_DIR="/root/deepbreath-frontend"        # 源码
-# nginx alias 期望的位置（dev + prod 都一样）：
-#   location ^~ /app/assets/    { alias /var/www/deepbreath/assets/; }
-#   location = /app/index.html  { alias /var/www/deepbreath/index.html; }
-# 部署直接写到这里，不再用 APP_DIR 中转（避免路径错位）
+# nginx 实际服务的路径（dev + prod 都一样，wikijs.conf 监听 443）：
+#   location /app/  { root /var/www/deepbreath; try_files $uri /app/index.html; }
+#   → URI /app/assets/foo 解析为 /var/www/deepbreath/app/assets/foo
+#   → URI /app/index.html 解析为 /var/www/deepbreath/app/index.html
+# 部署直接写到 /var/www/deepbreath/app/ 下，不再用 ROOT 中转（避免路径错位）
 BACKUP_ROOT="/var/www/deepbreath"          # 备份根目录
 REMOTE_62="root@47.103.62.70"              # prod 同步目标
 SSH_KEY="/root/.ssh/id_ed25519"
@@ -68,8 +69,8 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 err() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ $*" >&2; }
 
 TS=$(date '+%Y%m%d_%H%M%S')
-DEV_BACKUP="$BACKUP_ROOT/app.bak.$TS"
-PROD_BACKUP_REMOTE="/var/www/deepbreath/app.bak.$TS"
+# 备份目录约定：dev 用 deploy.bak.*；prod 用 deploy.bak.*（在 heredoc 里 mv 前自动建）
+# 老代码里的 DEV_BACKUP / PROD_BACKUP_REMOTE(app.bak.*) 已废弃，保留以防日志引用误读
 
 # ============================================================
 # 健康检查
@@ -137,26 +138,26 @@ log "✓ 构建完成: $BUILT_HASH"
 if [ "$DO_DEPLOY_DEV" = "0" ] && [ "$DO_DEPLOY_PROD" = "0" ]; then
   log "未指定 --to-dev/--to-prod，仅 build，不部署任何机器"
   log "产物在 dist/，可用手动部署："
-  log "  dev:  cp -r dist/assets/* /var/www/deepbreath/assets/ && cp dist/index.html /var/www/deepbreath/index.html"
+  log "  dev:  cp -r dist/assets/* /var/www/deepbreath/app/assets/ && cp dist/index.html /var/www/deepbreath/app/index.html"
   exit 0
 fi
 
 # ---------- 3) 部署 dev (58.89) ----------
-# 直接 cp 到 nginx alias 路径 /var/www/deepbreath/{assets,index.html}
+# nginx wikijs.conf 用 root /var/www/deepbreath + URI /app/ → 实际服务 /var/www/deepbreath/app/
 if [ "$DO_DEPLOY_DEV" = "1" ]; then
   DEV_BACKUP="$BACKUP_ROOT/deploy.bak.$TS"
   log "备份 dev 线上产物 → $DEV_BACKUP ..."
   mkdir -p "$DEV_BACKUP"
-  if [ -d /var/www/deepbreath/assets ]; then
-    cp -a /var/www/deepbreath/assets "$DEV_BACKUP/assets"
+  if [ -d /var/www/deepbreath/app/assets ]; then
+    cp -a /var/www/deepbreath/app/assets "$DEV_BACKUP/assets"
   fi
-  if [ -f /var/www/deepbreath/index.html ]; then
-    cp -a /var/www/deepbreath/index.html "$DEV_BACKUP/index.html"
+  if [ -f /var/www/deepbreath/app/index.html ]; then
+    cp -a /var/www/deepbreath/app/index.html "$DEV_BACKUP/index.html"
   fi
-  log "同步产物到 dev /var/www/deepbreath ..."
-  rm -rf /var/www/deepbreath/assets/*
-  cp -r dist/assets/* /var/www/deepbreath/assets/
-  cp dist/index.html /var/www/deepbreath/index.html
+  log "同步产物到 dev /var/www/deepbreath/app ..."
+  rm -rf /var/www/deepbreath/app/assets/*
+  cp -r dist/assets/* /var/www/deepbreath/app/assets/
+  cp dist/index.html /var/www/deepbreath/app/index.html
   log "✓ dev 部署完成（备份 $DEV_BACKUP）"
 fi
 
@@ -179,32 +180,32 @@ if [ "$DO_DEPLOY_PROD" = "1" ]; then
   PROD_DEPLOY_BACKUP="/var/www/deepbreath/deploy.bak.$TS"
   log "Prod 备份将保存到 → $PROD_DEPLOY_BACKUP"
 
-  # 4.3 同步 dist 到 prod（nginx alias 期望的位置是 /var/www/deepbreath/，不带 /app/）
-  # 使用中间目录 + 原子 mv 模式：避免 rsync --delete 直接覆盖 nginx alias 路径
+  # 4.3 同步 dist 到 prod（nginx 服务路径是 /var/www/deepbreath/app/，root 模式 + URI /app/）
+  # 使用中间目录 + 原子 mv 模式：避免 rsync --delete 直接覆盖 nginx 服务路径
   log "同步产物到 prod（中间目录 + 原子替换）..."
   ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" \
-    "rm -rf /tmp/deepbreath-sync && mkdir -p /tmp/deepbreath-sync/assets" \
+    "rm -rf /tmp/deepbreath-sync && mkdir -p /tmp/deepbreath-sync/app/assets" \
     || { err "Prod 中间目录准备失败"; exit 1; }
   rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
-    "dist/assets/" "$REMOTE_62:/tmp/deepbreath-sync/assets/" 2>&1 | tail -n 2 \
+    "dist/assets/" "$REMOTE_62:/tmp/deepbreath-sync/app/assets/" 2>&1 | tail -n 2 \
     || { err "Prod assets rsync 失败"; exit 1; }
   rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
-    "dist/index.html" "$REMOTE_62:/tmp/deepbreath-sync/index.html" 2>&1 | tail -n 2 \
+    "dist/index.html" "$REMOTE_62:/tmp/deepbreath-sync/app/index.html" 2>&1 | tail -n 2 \
     || { err "Prod index.html rsync 失败"; exit 1; }
-  # 在 prod 远端原子替换：备份老内容 → 清空 nginx alias 路径 → mv 新内容
+  # 在 prod 远端原子替换：备份老内容 → 清空 nginx 服务路径 → mv 新内容
   ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" bash << 'PROD_DEPLOY_EOF'
     set -e
     REMOTE_TS=$(date +%Y%m%d_%H%M%S)
     REMOTE_BACKUP_DIR="/var/www/deepbreath/deploy.bak.$REMOTE_TS"
     mkdir -p "$REMOTE_BACKUP_DIR"
-    if [ -d /var/www/deepbreath/assets ]; then
-      mv /var/www/deepbreath/assets "$REMOTE_BACKUP_DIR/assets"
+    if [ -d /var/www/deepbreath/app/assets ]; then
+      mv /var/www/deepbreath/app/assets "$REMOTE_BACKUP_DIR/assets"
     fi
-    if [ -f /var/www/deepbreath/index.html ]; then
-      mv /var/www/deepbreath/index.html "$REMOTE_BACKUP_DIR/index.html"
+    if [ -f /var/www/deepbreath/app/index.html ]; then
+      mv /var/www/deepbreath/app/index.html "$REMOTE_BACKUP_DIR/index.html"
     fi
-    mv /tmp/deepbreath-sync/assets /var/www/deepbreath/assets
-    mv /tmp/deepbreath-sync/index.html /var/www/deepbreath/index.html
+    mv /tmp/deepbreath-sync/app/assets /var/www/deepbreath/app/assets
+    mv /tmp/deepbreath-sync/app/index.html /var/www/deepbreath/app/index.html
     echo "prod deploy backup: $REMOTE_BACKUP_DIR"
 PROD_DEPLOY_EOF
 
@@ -222,9 +223,9 @@ PROD_DEPLOY_EOF
   else
     err "Prod 部署后健康检查失败，自动回滚！"
     ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" \
-      "rm -rf /var/www/deepbreath/app && cp -a $PROD_BACKUP_REMOTE /var/www/deepbreath/app" \
-      && log "✓ Prod 已回滚到 $PROD_BACKUP_REMOTE" \
-      || err "❌ Prod 回滚失败！需要手动恢复（备份在 $REMOTE_62:$PROD_BACKUP_REMOTE）"
+      "rm -rf /var/www/deepbreath/app && cp -a $PROD_DEPLOY_BACKUP/. /var/www/deepbreath/app/" \
+      && log "✓ Prod 已回滚到 $PROD_DEPLOY_BACKUP" \
+      || err "❌ Prod 回滚失败！需要手动恢复（备份在 $REMOTE_62:$PROD_DEPLOY_BACKUP）"
     exit 1
   fi
 fi
