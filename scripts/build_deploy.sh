@@ -64,7 +64,27 @@ PROD_BACKUP_REMOTE="/var/www/deepbreath/app.bak.$TS"
 # ============================================================
 # 健康检查
 # ============================================================
-check_health() {
+# check_status url expected_status label
+#   检查 HTTP status code（用 curl -w "%{http_code}"，不是 grep body）
+check_status() {
+  local url="$1"
+  local expect="$2"
+  local label="$3"
+  local status
+  status=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>&1) || {
+    err "$label 健康检查失败：curl 错误"
+    return 1
+  }
+  if [ "$status" != "$expect" ]; then
+    err "$label HTTP status: $status (期望 $expect)"
+    return 1
+  fi
+  return 0
+}
+
+# check_body url expected_substr label
+#   检查 response body 包含子串
+check_body() {
   local url="$1"
   local expect="$2"
   local label="$3"
@@ -74,7 +94,7 @@ check_health() {
     return 1
   }
   if ! echo "$resp" | grep -q "$expect"; then
-    err "$label 健康检查失败：响应不含 $expect"
+    err "$label 响应不含 $expect"
     echo "    响应: ${resp:0:200}"
     return 1
   fi
@@ -124,9 +144,13 @@ fi
 if [ "$DO_DEPLOY_PROD" = "1" ]; then
   # 4.1 部署前 pre-check（确认当前 prod 健康）
   log "Prod pre-check ..."
-  if ! check_health "$PROD_HEALTH_URL" '"db":"connected"' "prod pre-check"; then
-    err "Prod 当前不健康，拒绝部署！"
+  if ! check_status "$PROD_HEALTH_URL" "200" "prod pre-check status"; then
+    err "Prod 当前不健康（HTTP status 不对），拒绝部署！"
     err "请先用 --to-dev 部署 dev 修复后再次 --to-prod"
+    exit 1
+  fi
+  if ! check_body "$PROD_HEALTH_URL" '"db":"connected"' "prod pre-check body"; then
+    err "Prod 当前不健康（db/redis 未 connected），拒绝部署！"
     exit 1
   fi
   log "✓ Prod 当前健康"
@@ -148,8 +172,9 @@ if [ "$DO_DEPLOY_PROD" = "1" ]; then
   sleep 5
   log "Prod post-check ..."
   POST_OK=1
-  check_health "$PROD_HEALTH_URL" '"db":"connected"' "prod post-check health" || POST_OK=0
-  check_health "$PROD_INDEX_URL" '200' "prod post-check index" || POST_OK=0
+  check_status "$PROD_HEALTH_URL" "200" "prod post-check health status" || POST_OK=0
+  check_body "$PROD_HEALTH_URL" '"db":"connected"' "prod post-check health body" || POST_OK=0
+  check_status "$PROD_INDEX_URL" "200" "prod post-check index" || POST_OK=0
 
   if [ "$POST_OK" = "1" ]; then
     log "✓ Prod 部署成功 + 健康检查通过（备份 $PROD_BACKUP_REMOTE）"
