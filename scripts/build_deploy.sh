@@ -26,8 +26,17 @@
 # ============================================================
 set -euo pipefail
 
+# 磁盘安全检查：剩余空间 < 5GB 拒绝执行（防上次递归复制爆盘）
+FREE_GB=$(df -BG /var/www 2>/dev/null | tail -1 | awk '{print $4}' | tr -d 'G')
+if [ -n "$FREE_GB" ] && [ "$FREE_GB" -lt 5 ]; then
+  echo "❌ 磁盘剩余 ${FREE_GB}GB < 5GB，拒绝执行（防递归复制爆盘）。请先 SSH 清理老备份。" >&2
+  exit 1
+fi
+
 SRC_DIR="/root/deepbreath-frontend"        # 源码
-APP_DIR="/var/www/deepbreath/app"          # dev (58.89) 线上产物
+APP_DIR="/var/www/deepbreath/app"          # dev (58.89) 部署落地点（dist 写到这）
+# nginx alias 实际是 /var/www/deepbreath/assets/（不带 /app/），
+# prod 同步阶段会从 APP_DIR 复制到 nginx alias 期望的位置。
 BACKUP_ROOT="/var/www/deepbreath"          # dev 备份根目录
 REMOTE_62="root@47.103.62.70"              # prod 同步目标
 SSH_KEY="/root/.ssh/id_ed25519"
@@ -161,11 +170,34 @@ if [ "$DO_DEPLOY_PROD" = "1" ]; then
     "cp -a /var/www/deepbreath/app $PROD_BACKUP_REMOTE" \
     || { err "Prod 备份失败，中止部署"; exit 1; }
 
-  # 4.3 rsync 到 prod
-  log "同步产物到 prod ..."
-  rsync -az --delete -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
-    "$APP_DIR/" "$REMOTE_62:/var/www/deepbreath/app/" 2>&1 | tail -n 2 \
-    || { err "Prod rsync 失败"; exit 1; }
+  # 4.3 同步 dist 到 prod（nginx alias 期望的位置是 /var/www/deepbreath/，不带 /app/）
+  # 使用中间目录 + 原子 mv 模式：避免 rsync --delete 直接覆盖 nginx alias 路径
+  log "同步产物到 prod（中间目录 + 原子替换）..."
+  ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" \
+    "rm -rf /tmp/deepbreath-sync && mkdir -p /tmp/deepbreath-sync/assets" \
+    || { err "Prod 中间目录准备失败"; exit 1; }
+  rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
+    "$APP_DIR/assets/" "$REMOTE_62:/tmp/deepbreath-sync/assets/" 2>&1 | tail -n 2 \
+    || { err "Prod assets rsync 失败"; exit 1; }
+  rsync -az -e "ssh -i $SSH_KEY -o ConnectTimeout=10" \
+    "$APP_DIR/index.html" "$REMOTE_62:/tmp/deepbreath-sync/index.html" 2>&1 | tail -n 2 \
+    || { err "Prod index.html rsync 失败"; exit 1; }
+  # 在 prod 远端原子替换：备份老内容 → 清空 nginx alias 路径 → mv 新内容
+  ssh -i "$SSH_KEY" -o ConnectTimeout=10 "$REMOTE_62" bash << 'PROD_DEPLOY_EOF'
+    set -e
+    REMOTE_TS=$(date +%Y%m%d_%H%M%S)
+    REMOTE_BACKUP_DIR="/var/www/deepbreath/deploy.bak.$REMOTE_TS"
+    mkdir -p "$REMOTE_BACKUP_DIR"
+    if [ -d /var/www/deepbreath/assets ]; then
+      mv /var/www/deepbreath/assets "$REMOTE_BACKUP_DIR/assets"
+    fi
+    if [ -f /var/www/deepbreath/index.html ]; then
+      mv /var/www/deepbreath/index.html "$REMOTE_BACKUP_DIR/index.html"
+    fi
+    mv /tmp/deepbreath-sync/assets /var/www/deepbreath/assets
+    mv /tmp/deepbreath-sync/index.html /var/www/deepbreath/index.html
+    echo "prod deploy backup: $REMOTE_BACKUP_DIR"
+PROD_DEPLOY_EOF
 
   # 4.4 部署后 post-check（5s 让 nginx reload + 健康检查）
   log "等待 5s 让 prod nginx reload ..."
