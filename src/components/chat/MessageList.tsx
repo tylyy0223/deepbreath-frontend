@@ -77,7 +77,8 @@ export function MessageList({ messages, isStreaming, streamBuffer, mode }: Messa
           hasAudio={audioIds.has(String(msg.id || msg.created_at || ''))}
         />
       ))}
-      {isStreaming && <StreamingMessage content={streamBuffer} />}
+      {/* P2-6 4 模式专属等待文案（首字节前轮播 + 呼吸光晕） */}
+      {isStreaming && <StreamingMessage content={streamBuffer} mode={mode} />}
       <div id="scroll-bottom" />
     </div>
   );
